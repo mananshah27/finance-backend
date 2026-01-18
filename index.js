@@ -11,20 +11,27 @@ const transactionRoutes = require('./routes/transactions');
 
 const app = express();
 
-// CORS Configuration
+// CORS Configuration - UPDATED FOR VERCEL
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
+  origin: [
+    'http://localhost:5173',                    // Local frontend
+    'http://localhost:3000',                    // Local backend  
+    'https://finance-frontend-drab.vercel.app', // Your Vercel frontend
+    'https://finance-frontend-*.vercel.app',    // All Vercel deployments
+    'https://*.vercel.app'                      // Any Vercel app
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-// Database Connection - SIMPLIFIED VERSION
+// Database Connection
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log('✅ MongoDB connected successfully'))
 .catch((err) => {
   console.error('❌ MongoDB connection error:', err.message);
-  console.log('🔧 Connection string:', process.env.MONGODB_URI.replace(/:[^:]*@/, ':****@'));
 });
 
 // Routes
@@ -92,4 +99,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`🎯 Allowed origins: Localhost & Vercel`);
 });
