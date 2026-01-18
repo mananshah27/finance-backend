@@ -1,0 +1,488 @@
+const express = require("express");
+
+const app = express();
+const cors=require("cors");
+app.use(cors());
+
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("welcome to fianance tracker app !!!");
+});
+let users = [];
+let accounts = [];
+let transactions = [];
+let categories = [];
+
+//first we have to create the API for the users
+// POST   /api/users/register
+app.post("/api/users/register", (req, res) => {
+  const { Name, LastName, Mobile_No, Email, Password } = req.body;
+  if (!Name || !LastName || !Mobile_No || !Email || !Password) {
+    return res.status(400).json({
+      message:
+        "pls fill all the detail somehwere you have forget to fill pls check",
+    });
+  }
+  const exists = users.find((u) => u.Email === Email);
+  if (exists) {
+    return res.status(409).json({ message: "email already exists !!!" });
+  }
+  const newRecord = {
+    id: Date.now(),
+    Name,
+    LastName,
+    Mobile_No,
+    Email,
+    Password,
+  };
+  users.push(newRecord);
+  res.status(201).json({ message: "user created successfully !!!" });
+});
+// POST   /api/users/login
+app.post("/api/users/login", (req, res) => {
+  const { Email, Password } = req.body;
+  if (!Email || !Password) {
+    return res.status(400).json({ message: "pls fill all the fields !!!" });
+  }
+  const user = users.find((u) => u.Email === Email && u.Password === Password);
+  if (!user) {
+    return res.status(404).json({ message: "user not found" });
+  }
+  res.json({ message: "welcome user", user });
+});
+// GET    /api/users/profile
+app.get("/api/users/profile", (req, res) => {
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(401).json({ message: "unauthorized" });
+  }
+  const user = users.find((u) => u.id === Number(userId));
+  if (!user) {
+    return res.status(404).json({ message: "user not found !!!" });
+  }
+  res.status(200).json({
+    message: "profile loaded successfully",
+    data: {
+      Name: user.Name,
+      LastName: user.LastName,
+      Email: user.Email,
+      Mobile_No: user.Mobile_No,
+    },
+  });
+});
+
+// PUT    /api/users/profile
+app.put("/api/users/profile", (req, res) => {
+  const { userId } = req.query;
+  const { Name, Email, LastName, Mobile_No } = req.body;
+  const user = users.find((u) => u.id === Number(userId));
+  if (!user) {
+    return res.status(404).json({ message: "user not found !!!" });
+  }
+  if (Name) user.Name = Name;
+  if (Email) user.Email = Email;
+  if (LastName) user.LastName = LastName;
+  if (Mobile_No) user.Mobile_No = Mobile_No;
+
+  res
+    .status(200)
+    .json({ message: "user profile updated successfully !!!", user });
+});
+// DELETE /api/users/profile
+app.delete("/api/users/profile", (req, res) => {
+  const { userId } = req.query;
+  const user = users.find((u) => u.id === Number(userId));
+
+  const userIndex = users.findIndex((u) => u.id === Number(userId));
+  if (userIndex == -1) {
+    return res.status(404).json({ message: "user not found !!!" });
+  }
+  users.splice(userIndex, 1);
+  res.json({ message: "user deleted successfully !!!" });
+});
+// POST   /api/accounts
+app.post("/api/accounts", (req, res) => {
+  const { userId } = req.query;
+  const { name, type, initialbalance } = req.body;
+  if (!userId || !name || !type) {
+    return res.status(400).json({ message: "missing required fields" });
+  }
+  const user = users.find((u) => u.id === Number(userId));
+  if (!user) {
+    return res.status(404).json({ message: "No user found !!!" });
+  }
+  const newRecord = {
+    accountId: Date.now(),
+    userId: Number(userId),
+    name,
+    type,
+    balance: initialbalance || 0,
+    createdAt: new Date().toISOString(),
+  };
+  accounts.push(newRecord);
+  res.status(201).json({
+    message: "account created successfully",
+    account: newRecord,
+  });
+});
+// GET    /api/accounts
+app.get("/api/accounts", (req, res) => {
+  res.json({ message: "All accounts loaded successfully", accounts: accounts });
+});
+
+// GET    /api/accounts/:accountId
+app.get("/api/accounts/:accountId", (req, res) => {
+  const accountId = req.params.accountId;
+  const { userId } = req.query;
+  //check the user is valid or not
+  const accountRecord = accounts.find(
+    (u) => u.userId === Number(userId) && u.accountId === Number(accountId)
+  );
+  if (!accountRecord) {
+    return res.status(403).json({ message: "you are not authorized user !!!" });
+  }
+  res.json({
+    message: "account loaded successfully ",
+    accountRecord: accountRecord,
+  });
+});
+
+// PUT    /api/accounts/:accountId
+app.put("/api/accounts/:accountId", (req, res) => {
+  const accountId = req.params.accountId;
+  const { name, type, balance } = req.body;
+  const { userId } = req.query;
+  //check the user is valid or not
+  const accountRecord = accounts.find(
+    (u) => u.userId === Number(userId) && u.accountId === Number(accountId)
+  );
+  if (!accountRecord) {
+    return res.status(403).json({ message: "you are not authorized user !!!" });
+  }
+
+  if (name) accountRecord.name = name;
+  if (type) accountRecord.type = type;
+  if (balance !== undefined) {
+    accountRecord.balance = balance;
+  }
+
+  res.json({
+    message: "account section updated successfully !!!",
+    accountRecord: accountRecord,
+  });
+});
+// DELETE /api/accounts/:accountId
+app.delete("/api/accounts/:accountId", (req, res) => {
+  const accountId = req.params.accountId;
+
+  const { userId } = req.query;
+  //check the user is valid or not
+
+  const accountRecordIndex = accounts.findIndex(
+    (a) => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (accountRecordIndex == -1) {
+    return res.status(403).json({ message: "user is not authorized !!!" });
+  }
+  accounts.splice(accountRecordIndex, 1);
+  res.json({ message: "account deleted successfully !!!" });
+});
+
+//all categories API
+// POST /api/categories
+app.post("/api/categories", (req, res) => {
+  const { userId } = req.query;
+  const { name, type } = req.body;
+
+  if (!userId || !name || !type) {
+    return res.status(400).json({ message: "missing fields" });
+  }
+
+  // optional: prevent duplicate category
+  const exists = categories.find(
+    (c) => c.userId === Number(userId) && c.name === name
+  );
+  if (exists) {
+    return res.status(409).json({ message: "category already exists" });
+  }
+
+  const newCategory = {
+    categoryId: Date.now(),
+    userId: Number(userId),
+    name,
+    type, // income / expense
+  };
+
+  categories.push(newCategory);
+
+  res.status(201).json({
+    message: "category created successfully",
+    category: newCategory,
+  });
+});
+
+// GET /api/categories
+app.get("/api/categories", (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId required" });
+  }
+
+  const userCategories = categories.filter((c) => c.userId === Number(userId));
+
+  res.status(200).json(userCategories);
+});
+
+// GET /api/categories/:categoryId
+app.get("/api/categories/:categoryId", (req, res) => {
+  const { categoryId } = req.params;
+  const { userId } = req.query;
+
+  const category = categories.find(
+    (c) => c.categoryId === Number(categoryId) && c.userId === Number(userId)
+  );
+
+  if (!category) {
+    return res.status(404).json({ message: "category not found" });
+  }
+
+  res.json(category);
+});
+
+app.put("/api/categories/:categoryId", (req, res) => {
+  const { categoryId } = req.params;
+  const { userId } = req.query;
+  const { name, type } = req.body;
+
+  const category = categories.find(
+    (c) => c.categoryId === Number(categoryId) && c.userId === Number(userId)
+  );
+
+  if (!category) {
+    return res.status(404).json({ message: "category not found" });
+  }
+
+  if (name) category.name = name;
+  if (type) category.type = type;
+
+  res.json({
+    message: "category updated successfully",
+    category,
+  });
+});
+
+app.delete("/api/categories/:categoryId", (req, res) => {
+  const { categoryId } = req.params;
+  const { userId } = req.query;
+
+  const index = categories.findIndex(
+    (c) => c.categoryId === Number(categoryId) && c.userId === Number(userId)
+  );
+
+  if (index === -1) {
+    return res.status(404).json({ message: "category not found" });
+  }
+
+  categories.splice(index, 1);
+
+  res.json({ message: "category deleted successfully" });
+});
+
+// POST /api/transactions
+app.post("/api/transactions", (req, res) => {
+  const { userId, accountId } = req.query;
+  const { amount, type, categoryId } = req.body;
+
+  if (!userId || !accountId || !amount || !type || !categoryId) {
+    return res.status(400).json({ message: "missing fields" });
+  }
+
+  if (amount <= 0) {
+    return res.status(400).json({ message: "invalid amount" });
+  }
+
+  const account = accounts.find(
+    (a) => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (!account) {
+    return res.status(403).json({ message: "unauthorized account access" });
+  }
+
+  const category = categories.find(
+    (c) => c.categoryId === Number(categoryId) && c.userId === Number(userId)
+  );
+  if (!category) {
+    return res.status(404).json({ message: "invalid category" });
+  }
+
+  if (type === "expense") {
+    if (account.balance < amount) {
+      return res.status(400).json({ message: "insufficient balance" });
+    }
+    account.balance -= amount;
+  } else if (type === "income") {
+    account.balance += amount;
+  } else {
+    return res.status(400).json({ message: "invalid transaction type" });
+  }
+
+  
+
+  const newTransaction = {
+    transactionId: Date.now(),
+    userId: Number(userId),
+    accountId: Number(accountId),
+    categoryId: Number(categoryId),
+    type,
+    amount,
+    createdAt: new Date().toISOString(),
+  };
+
+  transactions.push(newTransaction);
+
+  res.status(201).json({
+    message: "transaction added successfully",
+    transaction: newTransaction,
+    updatedBalance: account.balance,
+  });
+});
+
+
+// GET    /api/transactions/:transactionId
+app.get("/api/transactions/:transactionId", (req, res) => {
+  const transactionId = req.params.transactionId;
+  const { userId, accountId } = req.query;
+  const account = accounts.find(
+    (a) => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (!account) {
+    return res.status(403).json({ message: "unauthorized account access" });
+  }
+  const transactionRecord = transactions.find(
+    (t) =>
+      t.transactionId === Number(transactionId) &&
+      t.userId === Number(userId) &&
+      t.accountId === Number(accountId)
+  );
+  if (!transactionRecord) {
+    return res.status(404).json({ message: "No transactions found !!!" });
+  }
+  res.status(200).json(transactionRecord);
+});
+
+// PUT    /api/transactions/:transactionId
+app.put("/api/transactions/:transactionId", (req, res) => {
+  const transactionId = req.params.transactionId;
+  const { userId, accountId } = req.query;
+  const { categoryId } = req.body;
+  const account = accounts.find(
+    (a) => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (!account) {
+    return res.status(403).json({ message: "unauthorized account access" });
+  }
+  const transactionRecord = transactions.find(
+    (t) =>
+      t.transactionId === Number(transactionId) &&
+      t.userId === Number(userId) &&
+      t.accountId === Number(accountId)
+  );
+  if (!transactionRecord) {
+    return res.status(404).json({ message: "No transactions found !!!" });
+  }
+  if (categoryId) transactionRecord.categoryId = categoryId;
+
+
+  res.json({
+    message: "transaction record updated successfully !!!",
+    transaction: transactionRecord,
+  });
+});
+
+// DELETE /api/transactions/:transactionId
+app.delete("/api/transactions/:transactionId", (req, res) => {
+  const transactionId = req.params.transactionId;
+  const { userId, accountId } = req.query;
+
+  const account = accounts.find(
+    (a) => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (!account) {
+    return res.status(403).json({ message: "unauthorized account access" });
+  }
+  const index = transactions.findIndex(
+    (t) =>
+      t.transactionId === Number(transactionId) &&
+      t.userId === Number(userId) &&
+      t.accountId === Number(accountId)
+  );
+  if (index === -1) {
+    res.status(404).json({ message: "No such transaction found !!!" });
+  }
+  const transaction = transactions[index];
+
+  if (transaction.type === "expense") {
+    account.balance += transaction.amount;
+  } else {
+    account.balance -= transaction.amount;
+  }
+
+  transactions.splice(index, 1);
+  res.json({ message: "transaction deleted successfully !!!" });
+});
+
+//advanced filtering api's
+app.get("/api/transactions", (req, res) => {
+  const { userId, accountId, type, categoryId, startDate, endDate } = req.query;
+
+  // 1️⃣ Authorize account
+  const account = accounts.find(
+    a => a.accountId === Number(accountId) && a.userId === Number(userId)
+  );
+  if (!account) {
+    return res.status(403).json({ message: "unauthorized access" });
+  }
+
+  // 2️⃣ Base filter
+  let result = transactions.filter(
+    t => t.userId === Number(userId) && t.accountId === Number(accountId)
+  );
+
+  // 3️⃣ Type filter
+  if (type) {
+    result = result.filter(t => t.type === type);
+  }
+
+  // 4️⃣ Category filter
+  if (categoryId) {
+    result = result.filter(t => t.categoryId === Number(categoryId));
+  }
+
+  // 5️⃣ Date range filter ⭐
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    result = result.filter(t => {
+      const txDate = new Date(t.createdAt);
+      return txDate >= start && txDate <= end;
+    });
+  }
+
+  if (result.length === 0) {
+    return res.status(404).json({ message: "no transactions found" });
+  }
+
+  res.json({
+    message: "transactions loaded successfully",
+    transactions: result
+  });
+});
+
+
+const port = 3000;
+app.listen(port, () => {
+  console.log(`App is running on http://localhost:${port}`);
+});
