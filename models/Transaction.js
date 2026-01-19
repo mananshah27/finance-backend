@@ -40,11 +40,7 @@ const transactionSchema = new mongoose.Schema({
   }
 });
 
-// ✅ CORRECT: Single pre-save middleware
-transactionSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// NO MIDDLEWARE
 
 // Index for faster queries
 transactionSchema.index({ userId: 1, accountId: 1, createdAt: -1 });

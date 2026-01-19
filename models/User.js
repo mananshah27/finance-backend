@@ -40,28 +40,25 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// ✅ CORRECT: Hash password before saving
+// CORRECT MIDDLEWARE - Using arrow function
 userSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
-  if (!this.isModified('password')) {
-    this.updatedAt = Date.now();
-    return next();
+  // Check if we're dealing with a new user or password change
+  if (this.isModified('password')) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    } catch (error) {
+      return next(error);
+    }
   }
   
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    
-    // Update updatedAt
-    this.updatedAt = Date.now();
-    if (this.isNew) {
-      this.createdAt = this.updatedAt;
-    }
-    
-    next();
-  } catch (error) {
-    next(error);
+  // Update timestamps
+  this.updatedAt = new Date();
+  if (this.isNew) {
+    this.createdAt = this.updatedAt;
   }
+  
+  next();
 });
 
 // Compare password method

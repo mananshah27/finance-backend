@@ -32,10 +32,7 @@ const accountSchema = new mongoose.Schema({
   }
 });
 
-// ✅ CORRECT: Single pre-save middleware with next parameter
-accountSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// NO MIDDLEWARE - Let Mongoose handle timestamps automatically
+// Comment out or remove all pre-save middleware
 
 module.exports = mongoose.model('Account', accountSchema);
