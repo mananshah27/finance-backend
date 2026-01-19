@@ -26,15 +26,12 @@ const categorySchema = new mongoose.Schema({
   }
 });
 
-// Compound index to prevent duplicate categories for same user
+// ✅ CORRECT: Compound index to prevent duplicate categories for same user
 categorySchema.index({ name: 1, userId: 1 }, { unique: true });
 
-// Single pre('save') middleware
+// ✅ CORRECT: Single pre-save middleware
 categorySchema.pre('save', function(next) {
   this.updatedAt = Date.now();
-  if (this.isNew) {
-    this.createdAt = this.updatedAt;
-  }
   next();
 });
 

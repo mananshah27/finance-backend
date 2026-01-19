@@ -32,16 +32,9 @@ const accountSchema = new mongoose.Schema({
   }
 });
 
-// SINGLE pre('save') middleware - combine both operations
+// ✅ CORRECT: Single pre-save middleware with next parameter
 accountSchema.pre('save', function(next) {
-  // Update updatedAt
   this.updatedAt = Date.now();
-  
-  // If it's a new document, set createdAt
-  if (this.isNew) {
-    this.createdAt = this.updatedAt;
-  }
-  
   next();
 });
 

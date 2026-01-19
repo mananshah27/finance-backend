@@ -40,14 +40,15 @@ router.post('/', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create category error:', error);
+    console.error('❌ Create category error:', error);
     if (error.code === 11000) {
       return res.status(409).json({
         message: 'Category already exists'
       });
     }
     res.status(500).json({
-      message: 'Error creating category'
+      message: 'Error creating category',
+      error: error.message
     });
   }
 });

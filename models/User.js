@@ -40,11 +40,10 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Hash password before saving - SINGLE pre('save') middleware
+// ✅ CORRECT: Hash password before saving
 userSchema.pre('save', async function(next) {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
-    // Update updatedAt even if password not modified
     this.updatedAt = Date.now();
     return next();
   }
@@ -53,7 +52,7 @@ userSchema.pre('save', async function(next) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     
-    // Update timestamps
+    // Update updatedAt
     this.updatedAt = Date.now();
     if (this.isNew) {
       this.createdAt = this.updatedAt;

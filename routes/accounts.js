@@ -29,9 +29,10 @@ router.post('/', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create account error:', error);
+    console.error('❌ Create account error:', error);
     res.status(500).json({
-      message: 'Error creating account'
+      message: 'Error creating account',
+      error: error.message
     });
   }
 });
