@@ -32,9 +32,16 @@ const accountSchema = new mongoose.Schema({
   }
 });
 
-// Update updatedAt on save
+// SINGLE pre('save') middleware - combine both operations
 accountSchema.pre('save', function(next) {
+  // Update updatedAt
   this.updatedAt = Date.now();
+  
+  // If it's a new document, set createdAt
+  if (this.isNew) {
+    this.createdAt = this.updatedAt;
+  }
+  
   next();
 });
 

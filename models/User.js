@@ -40,20 +40,28 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// ✅ CORRECT: Async function WITHOUT 'next' parameter
-userSchema.pre('save', async function() {
-  // Always update updatedAt
-  this.updatedAt = Date.now();
-  
-  // Only hash password if it was modified
-  if (!this.isModified('password')) return;
+// Hash password before saving - SINGLE pre('save') middleware
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password')) {
+    // Update updatedAt even if password not modified
+    this.updatedAt = Date.now();
+    return next();
+  }
   
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    
+    // Update timestamps
+    this.updatedAt = Date.now();
+    if (this.isNew) {
+      this.createdAt = this.updatedAt;
+    }
+    
+    next();
   } catch (error) {
-    // Throw error instead of calling next(error)
-    throw error;
+    next(error);
   }
 });
 

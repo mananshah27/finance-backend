@@ -40,9 +40,12 @@ const transactionSchema = new mongoose.Schema({
   }
 });
 
-// Update updatedAt on save
+// Single pre('save') middleware
 transactionSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  if (this.isNew) {
+    this.createdAt = this.updatedAt;
+  }
   next();
 });
 
