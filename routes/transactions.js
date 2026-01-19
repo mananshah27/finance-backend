@@ -1,63 +1,63 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Transaction = require('../models/Transaction');
-const Account = require('../models/Account');
-const Category = require('../models/Category');
-const auth = require('../middleware/auth');
+const Transaction = require("../models/Transaction");
+const Account = require("../models/Account");
+const Category = require("../models/Category");
+const auth = require("../middleware/auth");
 
 // Create Transaction
-router.post('/', auth, async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const { amount, type, categoryId, description, accountId } = req.body;
 
     // Validation
     if (!amount || !type || !categoryId || !accountId) {
       return res.status(400).json({
-        message: 'Missing required fields'
+        message: "Missing required fields",
       });
     }
 
     if (amount <= 0) {
       return res.status(400).json({
-        message: 'Amount must be greater than 0'
+        message: "Amount must be greater than 0",
       });
     }
 
     // Check if account belongs to user
     const account = await Account.findOne({
       _id: accountId,
-      userId: req.user._id
+      userId: req.user._id,
     });
 
     if (!account) {
       return res.status(403).json({
-        message: 'Unauthorized account access'
+        message: "Unauthorized account access",
       });
     }
 
     // Check if category belongs to user
     const category = await Category.findOne({
       _id: categoryId,
-      userId: req.user._id
+      userId: req.user._id,
     });
 
     if (!category) {
       return res.status(404).json({
-        message: 'Invalid category'
+        message: "Invalid category",
       });
     }
 
     // Check if category type matches transaction type
     if (category.type !== type) {
       return res.status(400).json({
-        message: `Category type (${category.type}) doesn't match transaction type (${type})`
+        message: `Category type (${category.type}) doesn't match transaction type (${type})`,
       });
     }
 
     // For expense, check balance
-    if (type === 'expense' && account.balance < amount) {
+    if (type === "expense" && account.balance < amount) {
       return res.status(400).json({
-        message: 'Insufficient balance'
+        message: "Insufficient balance",
       });
     }
 
@@ -67,7 +67,7 @@ router.post('/', auth, async (req, res) => {
 
     try {
       // Update account balance
-      if (type === 'income') {
+      if (type === "income") {
         account.balance += parseFloat(amount);
       } else {
         account.balance -= parseFloat(amount);
@@ -82,7 +82,7 @@ router.post('/', auth, async (req, res) => {
         categoryId,
         accountId,
         userId: req.user._id,
-        description
+        description,
       });
 
       await transaction.save({ session });
@@ -92,28 +92,26 @@ router.post('/', auth, async (req, res) => {
       session.endSession();
 
       res.status(201).json({
-        message: 'Transaction added successfully',
+        message: "Transaction added successfully",
         transaction,
-        updatedBalance: account.balance
+        updatedBalance: account.balance,
       });
-
     } catch (error) {
       // Rollback transaction
       await session.abortTransaction();
       session.endSession();
       throw error;
     }
-
   } catch (error) {
-    console.error('Create transaction error:', error);
+    console.error("Create transaction error:", error);
     res.status(500).json({
-      message: 'Error adding transaction'
+      message: "Error adding transaction",
     });
   }
 });
 
 // Get Transactions with Filters
-router.get('/', auth, async (req, res) => {
+router.get("/", auth, async (req, res) => {
   try {
     const { accountId, type, categoryId, startDate, endDate } = req.query;
 
@@ -125,12 +123,12 @@ router.get('/', auth, async (req, res) => {
       // Check if account belongs to user
       const account = await Account.findOne({
         _id: accountId,
-        userId: req.user._id
+        userId: req.user._id,
       });
 
       if (!account) {
         return res.status(403).json({
-          message: 'Unauthorized account access'
+          message: "Unauthorized account access",
         });
       }
 
@@ -147,7 +145,7 @@ router.get('/', auth, async (req, res) => {
       // Check if category belongs to user
       const category = await Category.findOne({
         _id: categoryId,
-        userId: req.user._id
+        userId: req.user._id,
       });
 
       if (category) {
@@ -158,11 +156,11 @@ router.get('/', auth, async (req, res) => {
     // Date range filter
     if (startDate || endDate) {
       filter.createdAt = {};
-      
+
       if (startDate) {
         filter.createdAt.$gte = new Date(startDate);
       }
-      
+
       if (endDate) {
         filter.createdAt.$lte = new Date(endDate);
       }
@@ -170,85 +168,100 @@ router.get('/', auth, async (req, res) => {
 
     // Get transactions with related data
     const transactions = await Transaction.find(filter)
-      .populate('categoryId', 'name type')
-      .populate('accountId', 'name type')
+      .populate("categoryId", "name type _id")
+      .populate("accountId", "name type")
       .sort({ createdAt: -1 });
+
+    // Transform the populated category data
+    const transformedTransactions = transactions.map((transaction) => {
+      const transactionObj = transaction.toObject();
+
+      if (transactionObj.categoryId) {
+        transactionObj.categoryId = {
+          _id: transactionObj.categoryId._id,
+          id: transactionObj.categoryId._id,
+          categoryId: transactionObj.categoryId._id,
+          name: transactionObj.categoryId.name,
+          type: transactionObj.categoryId.type,
+        };
+      }
+
+      return transactionObj;
+    });
 
     if (transactions.length === 0) {
       return res.status(404).json({
-        message: 'No transactions found'
+        message: "No transactions found",
       });
     }
 
     res.json({
-      message: 'Transactions loaded successfully',
-      transactions
+      message: "Transactions loaded successfully",
+      transactions,
     });
-
   } catch (error) {
-    console.error('Get transactions error:', error);
+    console.error("Get transactions error:", error);
     res.status(500).json({
-      message: 'Error fetching transactions'
+      message: "Error fetching transactions",
     });
   }
 });
 
 // Get Single Transaction
-router.get('/:id', auth, async (req, res) => {
+router.get("/:id", auth, async (req, res) => {
   try {
     const { accountId } = req.query;
 
     if (!accountId) {
       return res.status(400).json({
-        message: 'Account ID is required'
+        message: "Account ID is required",
       });
     }
 
     const transaction = await Transaction.findOne({
       _id: req.params.id,
       userId: req.user._id,
-      accountId
-    }).populate('categoryId', 'name type');
+      accountId,
+    }).populate("categoryId", "name type");
 
     if (!transaction) {
       return res.status(404).json({
-        message: 'Transaction not found'
+        message: "Transaction not found",
       });
     }
 
     res.json(transaction);
-
   } catch (error) {
-    console.error('Get transaction error:', error);
+    console.error("Get transaction error:", error);
     res.status(500).json({
-      message: 'Error fetching transaction'
+      message: "Error fetching transaction",
     });
   }
 });
 
 // Update Transaction (Only category can be updated)
-router.put('/:id', auth, async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     const { categoryId, accountId } = req.body;
 
     if (!accountId) {
       return res.status(400).json({
-        message: 'Account ID is required'
+        message: "Account ID is required",
       });
     }
 
     const updates = {};
-    
+
     if (categoryId) {
       // Check if new category belongs to user
       const category = await Category.findOne({
         _id: categoryId,
-        userId: req.user._id
+        userId: req.user._id,
       });
 
       if (!category) {
         return res.status(404).json({
-          message: 'Invalid category'
+          message: "Invalid category",
         });
       }
 
@@ -259,39 +272,38 @@ router.put('/:id', auth, async (req, res) => {
       {
         _id: req.params.id,
         userId: req.user._id,
-        accountId
+        accountId,
       },
       updates,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!transaction) {
       return res.status(404).json({
-        message: 'Transaction not found'
+        message: "Transaction not found",
       });
     }
 
     res.json({
-      message: 'Transaction updated successfully',
-      transaction
+      message: "Transaction updated successfully",
+      transaction,
     });
-
   } catch (error) {
-    console.error('Update transaction error:', error);
+    console.error("Update transaction error:", error);
     res.status(500).json({
-      message: 'Error updating transaction'
+      message: "Error updating transaction",
     });
   }
 });
 
 // Delete Transaction
-router.delete('/:id', auth, async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     const { accountId } = req.query;
 
     if (!accountId) {
       return res.status(400).json({
-        message: 'Account ID is required'
+        message: "Account ID is required",
       });
     }
 
@@ -303,33 +315,33 @@ router.delete('/:id', auth, async (req, res) => {
       const transaction = await Transaction.findOne({
         _id: req.params.id,
         userId: req.user._id,
-        accountId
+        accountId,
       });
 
       if (!transaction) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({
-          message: 'Transaction not found'
+          message: "Transaction not found",
         });
       }
 
       // Find account
       const account = await Account.findOne({
         _id: accountId,
-        userId: req.user._id
+        userId: req.user._id,
       });
 
       if (!account) {
         await session.abortTransaction();
         session.endSession();
         return res.status(403).json({
-          message: 'Unauthorized account access'
+          message: "Unauthorized account access",
         });
       }
 
       // Adjust account balance (reverse the transaction)
-      if (transaction.type === 'income') {
+      if (transaction.type === "income") {
         account.balance -= transaction.amount;
       } else {
         account.balance += transaction.amount;
@@ -345,21 +357,19 @@ router.delete('/:id', auth, async (req, res) => {
       session.endSession();
 
       res.json({
-        message: 'Transaction deleted successfully',
-        updatedBalance: account.balance
+        message: "Transaction deleted successfully",
+        updatedBalance: account.balance,
       });
-
     } catch (error) {
       // Rollback transaction
       await session.abortTransaction();
       session.endSession();
       throw error;
     }
-
   } catch (error) {
-    console.error('Delete transaction error:', error);
+    console.error("Delete transaction error:", error);
     res.status(500).json({
-      message: 'Error deleting transaction'
+      message: "Error deleting transaction",
     });
   }
 });

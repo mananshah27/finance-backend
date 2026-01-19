@@ -34,9 +34,16 @@ router.post('/', auth, async (req, res) => {
 
     await category.save();
 
+    // Send response with multiple ID fields
+    const categoryResponse = {
+      ...category.toObject(),
+      id: category._id,  // Add 'id' field
+      categoryId: category._id  // Add 'categoryId' field
+    };
+
     res.status(201).json({
       message: 'Category created successfully',
-      category
+      category: categoryResponse
     });
 
   } catch (error) {
@@ -59,7 +66,14 @@ router.get('/', auth, async (req, res) => {
     const categories = await Category.find({ userId: req.user._id })
       .sort({ type: 1, name: 1 });
 
-    res.json(categories);
+    // Add multiple ID fields for frontend compatibility
+    const categoriesWithMultipleIds = categories.map(category => ({
+      ...category.toObject(),
+      id: category._id,
+      categoryId: category._id
+    }));
+
+    res.json(categoriesWithMultipleIds);
 
   } catch (error) {
     console.error('Get categories error:', error);
@@ -83,7 +97,14 @@ router.get('/:id', auth, async (req, res) => {
       });
     }
 
-    res.json(category);
+    // Add multiple ID fields
+    const categoryResponse = {
+      ...category.toObject(),
+      id: category._id,
+      categoryId: category._id
+    };
+
+    res.json(categoryResponse);
 
   } catch (error) {
     console.error('Get category error:', error);
@@ -117,9 +138,16 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
+    // Add multiple ID fields
+    const categoryResponse = {
+      ...category.toObject(),
+      id: category._id,
+      categoryId: category._id
+    };
+
     res.json({
       message: 'Category updated successfully',
-      category
+      category: categoryResponse
     });
 
   } catch (error) {
